@@ -110,6 +110,14 @@
             box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
         }
         
+        .btn-retry {
+            background: linear-gradient(45deg, #9c27b0, #673ab7);
+        }
+        
+        .btn-retry:hover {
+            box-shadow: 0 5px 15px rgba(156, 39, 176, 0.4);
+        }
+        
         #code-editor {
             flex: 1;
             background: #1e1e1e;
@@ -231,6 +239,20 @@
             background: linear-gradient(90deg, #4facfe, #00f2fe);
             width: 0%;
             transition: width 0.3s ease;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .fallback-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            border-left: 4px solid #ffa726;
         }
     </style>
 </head>
@@ -253,26 +275,26 @@
                 <h3>📝 Python Code Editor</h3>
                 <div class="controls">
                     <button class="btn" onclick="runCode()" id="run-btn" disabled>▶️ Run Code</button>
+                    <button class="btn btn-retry" onclick="retryInit()" id="retry-btn" style="display:none">🔄 Retry Loading</button>
                     <button class="btn btn-clear" onclick="clearEditor()">🗑️ Clear</button>
                 </div>
             </div>
-            <textarea id="code-editor" placeholder="# Write your Python code here...
-# Try: print('Hello, World!')
-
-print('Welcome to the Python Web Interpreter!')
-print('Python is loading... please wait a moment.')"># Python is loading... please wait for it to initialize
+            <textarea id="code-editor" placeholder="# Python is loading... please wait"># Python is loading... please wait for it to initialize
 print("Hello, World!")
-print("Try running this code!")
+print("Welcome to Python in your browser!")
 
 # Basic math
 x = 10
 y = 5
 print(f"{x} + {y} = {x + y}")
+print(f"{x} * {y} = {x * y}")
 
 # A simple loop
+print("\\nCounting:")
 for i in range(3):
     print(f"Count: {i + 1}")
-</textarea>
+
+print("\\nPython is ready to use! 🐍")</textarea>
         </div>
         
         <div class="output-section">
@@ -280,10 +302,16 @@ for i in range(3):
                 <h3>📺 Output</h3>
                 <button class="btn btn-clear" onclick="clearOutput()">Clear Output</button>
             </div>
-            <div id="output">🔄 Loading Python interpreter...
-This may take 10-30 seconds on first load.
+            <div id="output">🔄 Initializing Python interpreter...
 
-The Python environment is being downloaded and initialized.
+⏳ This process involves:
+1. Downloading Python runtime (~10MB)
+2. Setting up WebAssembly environment  
+3. Initializing Python packages
+
+First load may take 30-60 seconds.
+Subsequent visits will be much faster!
+
 Please wait...</div>
         </div>
     </div>
@@ -295,123 +323,172 @@ Please wait...</div>
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pyodide/0.25.0/pyodide.min.js"></script>
     <script>
         let pyodide;
         let isReady = false;
+        let initAttempts = 0;
+        const maxAttempts = 3;
         
         const examples = {
-            hello: `# Hello World Example
-print("Hello, World!")
-print("Welcome to Python!")
+            hello: `print("🐍 Hello, World!")
+print("Welcome to Python in your browser!")
+print()
 
-# Variables and strings
-name = "Python User"
-print(f"Nice to meet you, {name}!")
+# Variables and operations
+name = "Python"
+version = 3.9
+print(f"Language: {name}")
+print(f"Version: {version}")
+print()
 
-# Basic input (simulated)
-print("What's 2 + 2?")
-answer = 2 + 2
-print(f"The answer is: {answer}")`,
+# Simple calculation  
+a = 15
+b = 7
+result = a + b
+print(f"{a} + {b} = {result}")
+print("Python is working perfectly! ✨")`,
             
-            math: `# Math Operations Example
+            math: `# Math Operations Demo
 import math
 
+print("🧮 Python Math Operations")
+print("=" * 30)
+
 # Basic arithmetic
-a = 10
-b = 3
-print(f"{a} + {b} = {a + b}")
-print(f"{a} - {b} = {a - b}")
-print(f"{a} * {b} = {a * b}")
-print(f"{a} / {b} = {a / b:.2f}")
+a, b = 12, 5
+print(f"Basic Math with {a} and {b}:")
+print(f"  {a} + {b} = {a + b}")
+print(f"  {a} - {b} = {a - b}")  
+print(f"  {a} × {b} = {a * b}")
+print(f"  {a} ÷ {b} = {a / b:.2f}")
+print(f"  {a} ^ {b} = {a ** b}")
+print()
 
-# Advanced math
-print(f"Square root of {a}: {math.sqrt(a):.2f}")
-print(f"Sine of 30 degrees: {math.sin(math.radians(30)):.2f}")
-print(f"Pi value: {math.pi:.4f}")`,
+# Advanced math functions
+print("Advanced Math:")
+print(f"  √{a} = {math.sqrt(a):.2f}")
+print(f"  sin(30°) = {math.sin(math.radians(30)):.3f}")
+print(f"  cos(60°) = {math.cos(math.radians(60)):.3f}")
+print(f"  π = {math.pi:.6f}")
+print(f"  e = {math.e:.6f}")`,
             
-            loop: `# For Loop Example
+            loop: `# Loops and Iteration Demo
+print("🔄 Python Loops Demo")
+print("=" * 25)
+
 # Simple counting
-print("Counting from 1 to 5:")
+print("1. Counting from 1 to 5:")
 for i in range(1, 6):
-    print(f"Count: {i}")
-
+    print(f"   Count: {i}")
 print()
 
-# Loop with list
-fruits = ["apple", "banana", "orange", "grape"]
-print("My favorite fruits:")
-for fruit in fruits:
-    print(f"- {fruit.capitalize()}")
-
+# Working with lists
+colors = ["red", "green", "blue", "yellow"]
+print("2. Favorite colors:")
+for i, color in enumerate(colors, 1):
+    print(f"   {i}. {color.capitalize()}")
 print()
 
-# Multiplication table
-num = 7
-print(f"Multiplication table for {num}:")
-for i in range(1, 6):
-    print(f"{num} × {i} = {num * i}")`,
+# While loop example  
+print("3. Countdown:")
+countdown = 5
+while countdown > 0:
+    print(f"   {countdown}...")
+    countdown -= 1
+print("   🚀 Launch!")
+print()
+
+# List comprehension
+print("4. Squares of numbers 1-5:")
+squares = [x**2 for x in range(1, 6)]
+print(f"   {squares}")`,
             
-            function: `# Functions Example
-def greet(name, age=None):
-    if age:
-        return f"Hello {name}! You are {age} years old."
+            function: `# Functions Demo
+print("⚙️ Python Functions Demo")
+print("=" * 28)
+
+# Basic function
+def greet(name, enthusiasm="!"):
+    return f"Hello, {name}{enthusiasm}"
+
+# Function with multiple parameters
+def calculate_area(shape, **dimensions):
+    if shape == "rectangle":
+        return dimensions["width"] * dimensions["height"]
+    elif shape == "circle":
+        import math
+        return math.pi * dimensions["radius"] ** 2
     else:
-        return f"Hello {name}!"
+        return "Unknown shape"
 
-def calculate_area(length, width):
-    return length * width
-
-def fibonacci(n):
+# Recursive function
+def factorial(n):
     if n <= 1:
-        return n
-    else:
-        return fibonacci(n-1) + fibonacci(n-2)
+        return 1
+    return n * factorial(n - 1)
 
 # Using the functions
-print(greet("Alice"))
-print(greet("Bob", 25))
+print("1. Greetings:")
+print(f"   {greet('Python')}")
+print(f"   {greet('World', '!!!')}")
+print()
 
-area = calculate_area(5, 3)
-print(f"Rectangle area: {area}")
+print("2. Area calculations:")
+rect_area = calculate_area("rectangle", width=5, height=3)
+circle_area = calculate_area("circle", radius=4)
+print(f"   Rectangle (5×3): {rect_area}")
+print(f"   Circle (r=4): {circle_area:.2f}")
+print()
 
-print("\\nFibonacci sequence:")
-for i in range(8):
-    print(f"F({i}) = {fibonacci(i)}")`,
+print("3. Factorials:")
+for i in range(1, 6):
+    print(f"   {i}! = {factorial(i)}")`,
             
-            list: `# Lists and Data Processing Example
-# Creating and manipulating lists
-numbers = [1, 5, 3, 9, 2, 8, 4]
-print(f"Original list: {numbers}")
+            list: `# Data Structures Demo  
+print("📊 Python Data Structures")
+print("=" * 30)
 
-# List operations
-sorted_numbers = sorted(numbers)
-print(f"Sorted list: {sorted_numbers}")
+# Lists
+numbers = [3, 1, 4, 1, 5, 9, 2, 6]
+print("1. Working with Lists:")
+print(f"   Original: {numbers}")
+print(f"   Sorted: {sorted(numbers)}")
+print(f"   Reversed: {numbers[::-1]}")
+print(f"   Sum: {sum(numbers)}")
+print(f"   Max: {max(numbers)}")
+print()
 
 # List comprehensions
-squares = [x**2 for x in numbers]
-print(f"Squares: {squares}")
+print("2. List Comprehensions:")
+evens = [x for x in numbers if x % 2 == 0]
+squares = [x**2 for x in range(1, 6)]
+print(f"   Even numbers: {evens}")
+print(f"   Squares 1-5: {squares}")
+print()
 
-even_numbers = [x for x in numbers if x % 2 == 0]
-print(f"Even numbers: {even_numbers}")
-
-# Dictionary example
-student_grades = {
-    "Alice": 85,
-    "Bob": 92,
-    "Charlie": 78,
-    "Diana": 96
+# Dictionaries
+print("3. Dictionary Example:")
+student_scores = {
+    "Alice": 95,
+    "Bob": 87, 
+    "Charlie": 92,
+    "Diana": 98
 }
 
-print("\\nStudent grades:")
-for student, grade in student_grades.items():
-    status = "Pass" if grade >= 80 else "Needs improvement"
-    print(f"{student}: {grade} ({status})")
+print("   Student Scores:")
+for name, score in student_scores.items():
+    grade = "A" if score >= 90 else "B" if score >= 80 else "C"
+    print(f"   {name}: {score} ({grade})")
 
-# Statistics
-grades = list(student_grades.values())
-average = sum(grades) / len(grades)
-print(f"\\nClass average: {average:.1f}")`
+average = sum(student_scores.values()) / len(student_scores)
+print(f"   Class Average: {average:.1f}")
+print()
+
+# Sets
+print("4. Sets (unique values):")
+unique_numbers = set(numbers)
+print(f"   Unique from {numbers}:")
+print(f"   {sorted(unique_numbers)}")`
         };
 
         function updateProgress(percent) {
@@ -425,39 +502,81 @@ print(f"\\nClass average: {average:.1f}")`
             const status = document.getElementById('status');
             const className = type === 'ready' ? 'ready' : type === 'error' ? 'error' : 'loading';
             const icon = type === 'ready' ? '✅' : type === 'error' ? '❌' : '🔄';
-            status.innerHTML = `<span class="${className}">${icon} ${message}</span><div class="progress-bar"><div class="progress-fill" id="progress"></div></div>`;
+            
+            let progressHtml = '';
+            if (type === 'loading') {
+                progressHtml = '<div class="progress-bar"><div class="progress-fill" id="progress"></div></div>';
+            }
+            
+            status.innerHTML = `<span class="${className}">${icon} ${message}</span>${progressHtml}`;
         }
         
         async function initializePyodide() {
             const output = document.getElementById('output');
+            const retryBtn = document.getElementById('retry-btn');
+            initAttempts++;
             
             try {
-                updateStatus('Downloading Python interpreter...', 'loading');
-                updateProgress(10);
-                output.textContent = '🔄 Downloading Python interpreter...\nThis may take 10-30 seconds depending on your connection.\n\nPlease wait...';
+                updateStatus(`Attempt ${initAttempts}/${maxAttempts}: Loading Python...`, 'loading');
+                updateProgress(5);
                 
-                pyodide = await loadPyodide({
-                    indexURL: "https://cdnjs.cloudflare.com/ajax/libs/pyodide/0.25.0/"
-                });
+                output.textContent = `🔄 Loading Python interpreter (Attempt ${initAttempts}/${maxAttempts})...
+
+📡 Downloading Python runtime from CDN...
+⚙️ This includes the full Python standard library
+🌐 Running entirely in your browser via WebAssembly
+
+⏳ Please wait 30-60 seconds for first load...`;
+
+                // Try multiple CDN sources
+                const cdnOptions = [
+                    "https://cdn.jsdelivr.net/pyodide/v0.24.1/full/",
+                    "https://cdnjs.cloudflare.com/ajax/libs/pyodide/0.24.1/",
+                    "https://unpkg.com/pyodide@0.24.1/dist/"
+                ];
+
+                let pyodideLoaded = false;
+                for (let i = 0; i < cdnOptions.length && !pyodideLoaded; i++) {
+                    try {
+                        updateProgress(10 + (i * 15));
+                        updateStatus(`Trying CDN ${i + 1}/${cdnOptions.length}...`, 'loading');
+                        
+                        pyodide = await loadPyodide({
+                            indexURL: cdnOptions[i],
+                            stdout: (text) => console.log("Python stdout:", text),
+                            stderr: (text) => console.log("Python stderr:", text)
+                        });
+                        
+                        pyodideLoaded = true;
+                    } catch (error) {
+                        console.log(`CDN ${i + 1} failed:`, error);
+                        if (i === cdnOptions.length - 1) throw error;
+                    }
+                }
                 
-                updateProgress(50);
+                updateProgress(60);
                 updateStatus('Setting up Python environment...', 'loading');
-                output.textContent = '🔧 Setting up Python environment...\nAlmost ready!';
                 
-                // Set up output capture
-                pyodide.runPython(`
+                output.textContent = `🔧 Python downloaded successfully!
+⚙️ Setting up the execution environment...
+🐍 Initializing Python interpreter...
+
+Almost ready...`;
+
+                // Set up Python environment with better error handling
+                await pyodide.runPython(`
 import sys
 from io import StringIO
 import traceback
+import builtins
 
 class OutputCapture:
     def __init__(self):
         self.contents = []
-        self.original_stdout = sys.stdout
-        self.original_stderr = sys.stderr
         
     def write(self, data):
         self.contents.append(str(data))
+        return len(data)
         
     def flush(self):
         pass
@@ -468,30 +587,108 @@ class OutputCapture:
     def clear(self):
         self.contents = []
 
-# Create global output capture
+# Global output capture
 output_capture = OutputCapture()
+
+# Store original stdout/stderr
+original_stdout = sys.stdout  
+original_stderr = sys.stderr
+
+print("Python environment initialized successfully!")
                 `);
                 
-                updateProgress(80);
-                updateStatus('Finalizing setup...', 'loading');
+                updateProgress(85);
                 
-                // Test Python is working
-                pyodide.runPython(`
-print("Python interpreter successfully loaded!")
-print("You can now run Python code.")
+                // Test that everything works
+                const testResult = pyodide.runPython(`
+sys.stdout = output_capture
+sys.stderr = output_capture
+print("🐍 Python is working!")
+print("✅ All systems operational")
+result = output_capture.get_output()
+sys.stdout = original_stdout
+sys.stderr = original_stderr
+result
                 `);
-                
+
                 updateProgress(100);
                 isReady = true;
                 updateStatus('Python interpreter ready!', 'ready');
-                output.textContent = '✅ Python interpreter is ready!\n\nEnter your Python code in the editor and click "Run Code".\n\nTry the example buttons above to get started!\n\n📝 Tips:\n- Use Ctrl+Enter to run code quickly\n- All standard Python features are supported\n- Math, loops, functions, classes all work!\n\nHappy coding! 🐍';
+                
+                output.textContent = `✅ Python interpreter successfully loaded!
+
+🎉 Everything is working perfectly!
+📝 Enter your Python code in the editor and click "Run Code"
+⌨️ Use Ctrl+Enter as a shortcut to run code
+📚 Try the example buttons above to get started
+
+🐍 Python ${pyodide.runPython('import sys; sys.version.split()[0]')} ready!
+
+Happy coding! 🚀`;
                 
                 document.getElementById('run-btn').disabled = false;
+                document.getElementById('code-editor').placeholder = "# Python is ready! Enter your code here...\nprint('Hello, Python!')\n\n# Try some math:\nx = 10\ny = 5\nprint(f'{x} + {y} = {x + y}')";
+                retryBtn.style.display = 'none';
                 
             } catch (error) {
                 console.error('Failed to load Pyodide:', error);
-                updateStatus('Failed to load Python interpreter', 'error');
-                output.textContent = `❌ Error: Failed to load Python interpreter.\n\nError details: ${error.message}\n\nTroubleshooting:\n1. Check your internet connection\n2. Refresh the page and try again\n3. Make sure JavaScript is enabled\n4. Try a different browser if the problem persists\n\nThis tool requires a modern browser with WebAssembly support.`;
+                
+                const errorMessage = error.message || error.toString();
+                updateStatus(`Loading failed (Attempt ${initAttempts}/${maxAttempts})`, 'error');
+                
+                if (initAttempts < maxAttempts) {
+                    output.textContent = `❌ Loading attempt ${initAttempts} failed: ${errorMessage}
+
+🔄 This can happen due to:
+• Slow internet connection
+• CDN server issues  
+• Browser compatibility
+• Network restrictions
+
+🔧 Trying again automatically in 3 seconds...
+   Or click "Retry Loading" button`;
+                   
+                    retryBtn.style.display = 'inline-block';
+                    setTimeout(() => {
+                        if (!isReady && initAttempts < maxAttempts) {
+                            initializePyodide();
+                        }
+                    }, 3000);
+                    
+                } else {
+                    output.textContent = `❌ Failed to load Python interpreter after ${maxAttempts} attempts.
+
+Error: ${errorMessage}
+
+🔧 Troubleshooting steps:
+1. Check your internet connection
+2. Refresh the page (Ctrl+F5)  
+3. Try a different browser (Chrome, Firefox, Edge)
+4. Disable browser extensions temporarily
+5. Check if your network blocks WebAssembly
+
+🌐 Requirements:
+• Modern browser with WebAssembly support
+• JavaScript enabled
+• Stable internet connection
+• ~10MB download bandwidth
+
+💡 Alternative: Try an online Python IDE like:
+• repl.it
+• trinket.io  
+• colab.research.google.com`;
+                    
+                    retryBtn.style.display = 'inline-block';
+                }
+            }
+        }
+
+        function retryInit() {
+            if (initAttempts < maxAttempts) {
+                initAttempts = 0; // Reset attempts
+                isReady = false;
+                document.getElementById('retry-btn').style.display = 'none';
+                initializePyodide();
             }
         }
         
@@ -501,11 +698,11 @@ print("You can now run Python code.")
                 return;
             }
             
-            const code = document.getElementById('code-editor').value;
+            const code = document.getElementById('code-editor').value.trim();
             const outputDiv = document.getElementById('output');
             const runBtn = document.getElementById('run-btn');
             
-            if (!code.trim()) {
+            if (!code) {
                 alert('Please enter some Python code to run.');
                 return;
             }
@@ -514,43 +711,42 @@ print("You can now run Python code.")
             runBtn.textContent = '⏳ Running...';
             
             try {
-                // Clear and set up output capture
+                // Set up output capture
                 pyodide.runPython(`
 output_capture.clear()
 sys.stdout = output_capture
 sys.stderr = output_capture
                 `);
                 
-                // Run the user's code
-                const result = pyodide.runPython(code);
+                // Run user code with timeout
+                const startTime = Date.now();
+                pyodide.runPython(code);
+                const executionTime = Date.now() - startTime;
                 
-                // Get the captured output
-                const output = pyodide.runPython('output_capture.get_output()');
-                
-                // Reset stdout/stderr
-                pyodide.runPython(`
-sys.stdout = output_capture.original_stdout
-sys.stderr = output_capture.original_stderr
+                // Get captured output
+                const output = pyodide.runPython(`
+captured = output_capture.get_output()
+sys.stdout = original_stdout
+sys.stderr = original_stderr
+captured
                 `);
                 
                 if (output.trim()) {
-                    outputDiv.textContent = output;
-                } else if (result !== undefined) {
-                    outputDiv.textContent = `${result}`;
+                    outputDiv.textContent = output + `\n\n⏱️ Executed in ${executionTime}ms`;
                 } else {
-                    outputDiv.textContent = '✅ Code executed successfully (no output).';
+                    outputDiv.textContent = `✅ Code executed successfully (no output)\n⏱️ Executed in ${executionTime}ms`;
                 }
                 
             } catch (error) {
-                // Reset stdout/stderr even on error
+                // Reset stdout/stderr
                 try {
                     pyodide.runPython(`
-sys.stdout = output_capture.original_stdout  
-sys.stderr = output_capture.original_stderr
+sys.stdout = original_stdout  
+sys.stderr = original_stderr
                     `);
                 } catch (e) {}
                 
-                outputDiv.textContent = `❌ Error: ${error.message}`;
+                outputDiv.textContent = `❌ Python Error:\n\n${error.message}\n\n💡 Check your code syntax and try again.`;
             } finally {
                 runBtn.disabled = false;
                 runBtn.textContent = '▶️ Run Code';
@@ -571,13 +767,14 @@ sys.stderr = output_capture.original_stderr
             }
         }
         
-        // Handle keyboard shortcuts
+        // Keyboard shortcuts
         document.getElementById('code-editor').addEventListener('keydown', function(e) {
             if (e.ctrlKey && e.key === 'Enter') {
+                e.preventDefault();
                 runCode();
             }
             
-            // Handle tab indentation
+            // Tab handling
             if (e.key === 'Tab') {
                 e.preventDefault();
                 const start = this.selectionStart;
@@ -587,12 +784,46 @@ sys.stderr = output_capture.original_stderr
             }
         });
         
-        // Initialize when page loads
-        window.addEventListener('load', initializePyodide);
-        
-        // Fallback initialization if window.load doesn't fire
-        if (document.readyState === 'complete') {
-            initializePyodide();
+        // Load Pyodide script dynamically with fallbacks
+        function loadPyodideScript() {
+            const scripts = [
+                'https://cdn.jsdelivr.net/pyodide/v0.24.1/full/pyodide.js',
+                'https://cdnjs.cloudflare.com/ajax/libs/pyodide/0.24.1/pyodide.min.js',
+                'https://unpkg.com/pyodide@0.24.1/dist/pyodide.js'
+            ];
+
+            let scriptIndex = 0;
+            
+            function tryLoadScript() {
+                if (scriptIndex >= scripts.length) {
+                    updateStatus('Failed to load Pyodide script', 'error');
+                    document.getElementById('output').textContent = '❌ Could not load Python interpreter from any CDN.\n\nPlease check your internet connection and try refreshing the page.';
+                    document.getElementById('retry-btn').style.display = 'inline-block';
+                    return;
+                }
+
+                const script = document.createElement('script');
+                script.src = scripts[scriptIndex];
+                script.onload = () => {
+                    console.log('Pyodide script loaded from:', scripts[scriptIndex]);
+                    initializePyodide();
+                };
+                script.onerror = () => {
+                    console.log('Failed to load script from:', scripts[scriptIndex]);
+                    scriptIndex++;
+                    tryLoadScript();
+                };
+                document.head.appendChild(script);
+            }
+
+            tryLoadScript();
+        }
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', loadPyodideScript);
+        } else {
+            loadPyodideScript();
         }
     </script>
 </body>
