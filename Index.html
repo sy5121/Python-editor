@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python Web Interpreter</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pyodide/0.24.1/pyodide.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            text-align: center;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        
+        .container {
+            flex: 1;
+            display: flex;
+            padding: 20px;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
+        .editor-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .editor-header {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px 20px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .editor-header h3 {
+            font-size: 1.2rem;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .btn {
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+            border: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-clear {
+            background: linear-gradient(45deg, #ff6b6b, #ffa726);
+        }
+        
+        .btn-clear:hover {
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+        
+        #code-editor {
+            flex: 1;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border: none;
+            padding: 20px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            resize: none;
+            outline: none;
+            tab-size: 4;
+        }
+        
+        #code-editor::placeholder {
+            color: #666;
+        }
+        
+        .output-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .output-header {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px 20px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        #output {
+            flex: 1;
+            background: #000;
+            color: #00ff00;
+            padding: 20px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .status {
+            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        
+        .loading {
+            color: #ffa726;
+        }
+        
+        .ready {
+            color: #4caf50;
+        }
+        
+        .error {
+            color: #f44336;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .controls {
+                flex-wrap: wrap;
+            }
+        }
+        
+        .python-logo {
+            width: 40px;
+            height: 40px;
+            margin-right: 15px;
+            filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.3));
+        }
+        
+        .examples {
+            margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .example-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 6px 12px;
+            border-radius: 6px;
+            color: white;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+        }
+        
+        .example-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🐍 Python Web Interpreter</h1>
+        <p>Run Python code directly in your browser - no installation required!</p>
+        <div class="examples">
+            <button class="example-btn" onclick="loadExample('hello')">Hello World</button>
+            <button class="example-btn" onclick="loadExample('math')">Math Operations</button>
+            <button class="example-btn" onclick="loadExample('loop')">For Loop</button>
+            <button class="example-btn" onclick="loadExample('function')">Functions</button>
+            <button class="example-btn" onclick="loadExample('list')">Lists & Data</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="editor-section">
+            <div class="editor-header">
+                <h3>📝 Python Code Editor</h3>
+                <div class="controls">
+                    <button class="btn" onclick="runCode()" id="run-btn">▶️ Run Code</button>
+                    <button class="btn btn-clear" onclick="clearEditor()">🗑️ Clear</button>
+                </div>
+            </div>
+            <textarea id="code-editor" placeholder="# Write your Python code here...
+# Try: print('Hello, World!')
+
+print('Welcome to the Python Web Interpreter!')
+print('Enter your code and click Run to execute.')"></textarea>
+        </div>
+        
+        <div class="output-section">
+            <div class="output-header">
+                <h3>📺 Output</h3>
+                <button class="btn btn-clear" onclick="clearOutput()">Clear Output</button>
+            </div>
+            <div id="output">Python interpreter is loading...</div>
+        </div>
+    </div>
+    
+    <div class="status" id="status">
+        <span class="loading">🔄 Initializing Python interpreter...</span>
+    </div>
+
+    <script>
+        let pyodide;
+        let isReady = false;
+        
+        const examples = {
+            hello: `# Hello World Example
+print("Hello, World!")
+print("Welcome to Python!")
+
+name = input("What's your name? ")
+print(f"Nice to meet you, {name}!")`,
+            
+            math: `# Math Operations Example
+import math
+
+# Basic arithmetic
+a = 10
+b = 3
+print(f"{a} + {b} = {a + b}")
+print(f"{a} - {b} = {a - b}")
+print(f"{a} * {b} = {a * b}")
+print(f"{a} / {b} = {a / b:.2f}")
+
+# Advanced math
+print(f"Square root of {a}: {math.sqrt(a):.2f}")
+print(f"Sine of 30 degrees: {math.sin(math.radians(30)):.2f}")`,
+            
+            loop: `# For Loop Example
+# Simple counting
+for i in range(1, 6):
+    print(f"Count: {i}")
+
+print()
+
+# Loop with list
+fruits = ["apple", "banana", "orange", "grape"]
+print("My favorite fruits:")
+for fruit in fruits:
+    print(f"- {fruit.capitalize()}")
+
+print()
+
+# Multiplication table
+num = 5
+print(f"Multiplication table for {num}:")
+for i in range(1, 11):
+    print(f"{num} × {i} = {num * i}")`,
+            
+            function: `# Functions Example
+def greet(name, age=None):
+    if age:
+        return f"Hello {name}! You are {age} years old."
+    else:
+        return f"Hello {name}!"
+
+def calculate_area(length, width):
+    return length * width
+
+def fibonacci(n):
+    if n <= 1:
+        return n
+    else:
+        return fibonacci(n-1) + fibonacci(n-2)
+
+# Using the functions
+print(greet("Alice"))
+print(greet("Bob", 25))
+
+area = calculate_area(5, 3)
+print(f"Rectangle area: {area}")
+
+print("Fibonacci sequence:")
+for i in range(8):
+    print(f"F({i}) = {fibonacci(i)}")`,
+            
+            list: `# Lists and Data Processing Example
+# Creating and manipulating lists
+numbers = [1, 5, 3, 9, 2, 8, 4]
+print(f"Original list: {numbers}")
+
+# List operations
+numbers.sort()
+print(f"Sorted list: {numbers}")
+
+# List comprehensions
+squares = [x**2 for x in numbers]
+print(f"Squares: {squares}")
+
+even_numbers = [x for x in numbers if x % 2 == 0]
+print(f"Even numbers: {even_numbers}")
+
+# Dictionary example
+student_grades = {
+    "Alice": 85,
+    "Bob": 92,
+    "Charlie": 78,
+    "Diana": 96
+}
+
+print("\\nStudent grades:")
+for student, grade in student_grades.items():
+    status = "Pass" if grade >= 80 else "Needs improvement"
+    print(f"{student}: {grade} ({status})")
+
+# Statistics
+grades = list(student_grades.values())
+average = sum(grades) / len(grades)
+print(f"\\nClass average: {average:.1f}")`
+        };
+        
+        async function initializePyodide() {
+            try {
+                pyodide = await loadPyodide();
+                
+                // Redirect Python output to our output div
+                pyodide.runPython(`
+import sys
+from io import StringIO
+
+class OutputCapture:
+    def __init__(self):
+        self.contents = []
+        
+    def write(self, data):
+        self.contents.append(data)
+        
+    def flush(self):
+        pass
+        
+    def get_output(self):
+        return ''.join(self.contents)
+        
+    def clear(self):
+        self.contents = []
+
+output_capture = OutputCapture()
+sys.stdout = output_capture
+sys.stderr = output_capture
+                `);
+                
+                isReady = true;
+                document.getElementById('status').innerHTML = '<span class="ready">✅ Python interpreter ready!</span>';
+                document.getElementById('output').textContent = 'Python interpreter is ready!\nEnter your code and click "Run Code" to execute.\n\nTry the example buttons above to get started!';
+                document.getElementById('run-btn').disabled = false;
+            } catch (error) {
+                document.getElementById('status').innerHTML = '<span class="error">❌ Failed to load Python interpreter</span>';
+                document.getElementById('output').textContent = 'Error: Failed to load Python interpreter.\nPlease refresh the page and try again.';
+                console.error('Failed to load Pyodide:', error);
+            }
+        }
+        
+        async function runCode() {
+            if (!isReady) {
+                alert('Python interpreter is still loading. Please wait...');
+                return;
+            }
+            
+            const code = document.getElementById('code-editor').value;
+            const outputDiv = document.getElementById('output');
+            const runBtn = document.getElementById('run-btn');
+            
+            if (!code.trim()) {
+                alert('Please enter some Python code to run.');
+                return;
+            }
+            
+            runBtn.disabled = true;
+            runBtn.textContent = '⏳ Running...';
+            
+            try {
+                // Clear previous output
+                pyodide.runPython('output_capture.clear()');
+                
+                // Mock input function for demo purposes
+                pyodide.runPython(`
+def input(prompt=""):
+    print(prompt + "[Demo: returning 'User']")
+    return "User"
+                `);
+                
+                // Run the user's code
+                pyodide.runPython(code);
+                
+                // Get the captured output
+                const output = pyodide.runPython('output_capture.get_output()');
+                
+                if (output.trim()) {
+                    outputDiv.textContent = output;
+                } else {
+                    outputDiv.textContent = 'Code executed successfully (no output).';
+                }
+                
+            } catch (error) {
+                outputDiv.textContent = `Error: ${error.message}`;
+            } finally {
+                runBtn.disabled = false;
+                runBtn.textContent = '▶️ Run Code';
+            }
+        }
+        
+        function clearEditor() {
+            document.getElementById('code-editor').value = '';
+        }
+        
+        function clearOutput() {
+            document.getElementById('output').textContent = '';
+        }
+        
+        function loadExample(type) {
+            document.getElementById('code-editor').value = examples[type];
+        }
+        
+        // Handle Enter key in textarea (Ctrl+Enter to run)
+        document.getElementById('code-editor').addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                runCode();
+            }
+        });
+        
+        // Initialize when page loads
+        initializePyodide();
+    </script>
+</body>
+</html>
