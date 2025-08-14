@@ -692,17 +692,89 @@ Error: ${errorMessage}
             }
         }
         
+        function fixQuotes(code) {
+            // Replace smart/curly quotes with regular quotes
+            return code
+                .replace(/[""]/g, '"')     // Replace smart double quotes
+                .replace(/['']/g, "'")     // Replace smart single quotes
+                .replace(/[‚„]/g, '"')     // Replace other quote variants
+                .replace(/[‛]/g, "'");     // Replace other single quote variants
+        }
+
+        function getHelpfulErrorMessage(error) {
+            const message = error.message;
+            
+            if (message.includes('invalid character') && message.includes('U+201')) {
+                return `❌ Smart Quotes Error:
+
+${message}
+
+🔧 Fix: You're using "smart quotes" (curly quotes) instead of regular quotes.
+
+Replace: " " with " "
+Replace: ' ' with ' '
+
+💡 Tip: Type quotes directly or copy from the examples to avoid this issue.`;
+            }
+            
+            if (message.includes('SyntaxError')) {
+                return `❌ Python Syntax Error:
+
+${message}
+
+🔧 Common fixes:
+• Check for missing colons (:) after if, for, def, etc.
+• Make sure indentation is consistent (use 4 spaces)
+• Check for unmatched parentheses, brackets, or quotes
+• Ensure proper spelling of Python keywords
+
+💡 Tip: Try one of the working examples first!`;
+            }
+            
+            if (message.includes('NameError')) {
+                return `❌ Name Error:
+
+${message}
+
+🔧 This usually means:
+• Variable used before being defined
+• Typo in variable or function name
+• Missing import statement
+
+💡 Tip: Define variables before using them!`;
+            }
+            
+            if (message.includes('IndentationError')) {
+                return `❌ Indentation Error:
+
+${message}
+
+🔧 Python is picky about indentation:
+• Use 4 spaces (not tabs) for each indent level
+• Make sure all lines in a block have the same indentation
+• Don't mix tabs and spaces
+
+💡 Tip: Select your code and press Tab to auto-indent!`;
+            }
+            
+            return `❌ Python Error:
+
+${message}
+
+💡 Check your code syntax and try again.`;
+        }
+
         async function runCode() {
             if (!isReady) {
                 alert('Python interpreter is still loading. Please wait...');
                 return;
             }
             
-            const code = document.getElementById('code-editor').value.trim();
+            const rawCode = document.getElementById('code-editor').value.trim();
             const outputDiv = document.getElementById('output');
             const runBtn = document.getElementById('run-btn');
             
-            if (!code) {
+            if (!rawCode) {
                 alert('Please enter some Python code to run.');
                 return;
             }
@@ -711,6 +783,14 @@ Error: ${errorMessage}
             runBtn.textContent = '⏳ Running...';
             
             try {
+                // Fix common quote issues
+                const code = fixQuotes(rawCode);
+                
+                // Show if we fixed quotes
+                if (code !== rawCode) {
+                    outputDiv.textContent = '🔧 Auto-fixed smart quotes → regular quotes\n⏳ Running code...\n\n';
+                }
+                
                 // Set up output capture
                 pyodide.runPython(`
 output_capture.clear()
@@ -718,7 +798,14 @@ sys.stdout = output_capture
 sys.stderr = output_capture
                 `);
                 
-                // Run user code with timeout
+                // Mock input function for better UX
+                pyodide.runPython(`
+def input(prompt=""):
+    print(f"{prompt}[Auto-input: 'sample_input']")
+    return "sample_input"
+                `);
+                
+                // Run user code
                 const startTime = Date.now();
                 pyodide.runPython(code);
                 const executionTime = Date.now() - startTime;
@@ -746,7 +833,7 @@ sys.stderr = original_stderr
                     `);
                 } catch (e) {}
                 
-                outputDiv.textContent = `❌ Python Error:\n\n${error.message}\n\n💡 Check your code syntax and try again.`;
+                outputDiv.textContent = getHelpfulErrorMessage(error);
             } finally {
                 runBtn.disabled = false;
                 runBtn.textContent = '▶️ Run Code';
